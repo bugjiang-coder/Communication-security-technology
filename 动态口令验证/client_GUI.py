@@ -1,0 +1,79 @@
+from PySide2.QtWidgets import QApplication, QMessageBox
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtCore import QTimer,QDateTime
+from socket import *
+import hashlib
+
+class Stats:
+
+    def __init__(self):
+        # 从文件中加载UI定义
+
+        # 从 UI 定义中动态 创建一个相应的窗口对象
+        # 注意：里面的控件对象也成为窗口对象的属性了
+        # 比如 self.ui.button , self.ui.textEdit
+        self.ui = QUiLoader().load('client.ui')
+        self.ui.ButtonNO.clicked.connect(self.ButtonNO)
+        self.ui.ButtonOK.clicked.connect(self.handleOK)
+    def ButtonNO(self):
+        self.ui.key.setText('')
+        self.ui.token.setText('')
+        self.ui.textEdit.setText('')
+
+    def handleOK(self):
+        clientSocket.connect((serverName, serverPort))  # 向服务器发起连接
+        id = self.ui.id.text().encode()
+        key = self.ui.key.text()
+        token = self.ui.token.text()
+
+        self.ui.textEdit.append(str("用户名为："+id.decode()))
+        clientSocket.send(id)
+        # 从服务器接收信息
+        feedback = clientSocket.recvfrom(1024)
+        # 打印服务器的反馈
+        self.ui.textEdit.append(feedback[0].decode())
+
+        if feedback[0] == "Start certification".encode():
+            # 先本地对PIN进行hash
+            PIN = key.encode('utf-8')
+            sha256_forPIN = hashlib.sha256()
+            sha256_forPIN.update(PIN)
+            PIN = sha256_forPIN.hexdigest()
+
+            # 对时间令牌和PIN的hash结果合并后再hash
+            identify_value = (PIN + str(token)).encode('utf-8')
+            sha256.update(identify_value)
+            identify_value = sha256.hexdigest()
+            clientSocket.send(identify_value.encode())
+            feedback2 = clientSocket.recvfrom(1024)
+            self.ui.textEdit.append(feedback2[0].decode())
+            QMessageBox.about(self.ui, '通知', f'''
+            登录成功'''
+            )
+
+        else:
+            QMessageBox.about(self.ui,'错误', f'''登录失败
+            ''')
+
+        clientSocket.close()  # 关闭套接字
+
+
+
+
+
+serverName = '127.0.0.1' # 指定服务器IP地址
+serverPort = 12000
+clientSocket = socket(AF_INET, SOCK_STREAM) # 建立TCP套接字，使用IPv4协议
+
+sha256 = hashlib.sha256()
+
+app = QApplication([])
+
+stats = Stats()
+
+stats.ui.show()
+
+app.exec_()
+
+
+

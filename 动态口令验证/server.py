@@ -57,7 +57,7 @@ def findUser(userID):
     return (False, None)
 
 
-times = 3
+times = 6
 
 while times:
     connectionSocket, addr = serverSocket.accept()  # 接收到客户连接请求后，建立新的TCP连接套接字
