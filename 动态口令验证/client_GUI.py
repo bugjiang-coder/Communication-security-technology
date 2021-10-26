@@ -1,6 +1,5 @@
 from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtUiTools import QUiLoader
-from PySide2.QtCore import QTimer,QDateTime
 from socket import *
 import hashlib
 
@@ -21,7 +20,15 @@ class Stats:
         self.ui.textEdit.setText('')
 
     def handleOK(self):
-        clientSocket.connect((serverName, serverPort))  # 向服务器发起连接
+        try:
+            clientSocket = socket(AF_INET, SOCK_STREAM)  # 建立TCP套接字，使用IPv4协议
+            clientSocket.connect((serverName, serverPort))  # 向服务器发起连接
+        except OSError as error:
+            self.ui.textEdit.append(str(error))
+        except ConnectionRefusedError as er:
+            self.ui.textEdit.append(str(er))
+
+        sha256 = hashlib.sha256()
         id = self.ui.id.text().encode()
         key = self.ui.key.text()
         token = self.ui.token.text()
@@ -47,9 +54,13 @@ class Stats:
             clientSocket.send(identify_value.encode())
             feedback2 = clientSocket.recvfrom(1024)
             self.ui.textEdit.append(feedback2[0].decode())
-            QMessageBox.about(self.ui, '通知', f'''
-            登录成功'''
-            )
+            if feedback2[0].decode() == "OK":
+                QMessageBox.about(self.ui, '通知', f'''
+                登录成功'''
+                )
+            else:
+                QMessageBox.about(self.ui, '错误', f'''登录失败
+                            ''')
 
         else:
             QMessageBox.about(self.ui,'错误', f'''登录失败
@@ -63,9 +74,9 @@ class Stats:
 
 serverName = '127.0.0.1' # 指定服务器IP地址
 serverPort = 12000
-clientSocket = socket(AF_INET, SOCK_STREAM) # 建立TCP套接字，使用IPv4协议
 
-sha256 = hashlib.sha256()
+
+
 
 app = QApplication([])
 
