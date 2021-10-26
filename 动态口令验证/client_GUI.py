@@ -6,14 +6,10 @@ import hashlib
 class Stats:
 
     def __init__(self):
-        # 从文件中加载UI定义
-
-        # 从 UI 定义中动态 创建一个相应的窗口对象
-        # 注意：里面的控件对象也成为窗口对象的属性了
-        # 比如 self.ui.button , self.ui.textEdit
         self.ui = QUiLoader().load('client.ui')
         self.ui.ButtonNO.clicked.connect(self.ButtonNO)
         self.ui.ButtonOK.clicked.connect(self.handleOK)
+        
     def ButtonNO(self):
         self.ui.key.setText('')
         self.ui.token.setText('')
@@ -74,9 +70,6 @@ class Stats:
 
 serverName = '127.0.0.1' # 指定服务器IP地址
 serverPort = 12000
-
-
-
 
 app = QApplication([])
 
