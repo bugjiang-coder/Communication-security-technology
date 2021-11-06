@@ -13,13 +13,14 @@ serverPort = 12000
 context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 # 加载信任根证书
 context.load_verify_locations('./ca/ca.crt')
+ssr = []
 
-    #与服务端建立socket连接
+#与服务端建立socket连接
 with socket.create_connection((serverName,serverPort)) as sock:
     # 将socket打包成SSL socket
     # 一定要注意的是这里的server_hostname不是指服务端IP，而是指服务端证书中设置的CN
     with context.wrap_socket(sock, server_hostname='19300240012') as ssock:
-
+        ssr = ssock.session
         sha256 = hashlib.sha256()
 
         id = input('输入用户名：\n').encode() # 用户输入信息，并编码为bytes以便发送
@@ -55,4 +56,8 @@ with socket.create_connection((serverName,serverPort)) as sock:
 
 
         ssock.close() # 关闭套接字
-
+input("wait")
+sock2 = socket.create_connection((serverName, serverPort))
+ssock2 = context.wrap_socket(sock2, server_hostname="19300240012", session=ssr)
+print(ssock2.session_reused) # True , if server support it
+input("wait")

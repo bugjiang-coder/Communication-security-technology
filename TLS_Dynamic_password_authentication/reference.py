@@ -1,4 +1,7 @@
-hostname = 'google.com'
+import socket
+
+import ssl
+hostname = 'baidu.com'
 port = 443
 resource = '/'
 
@@ -13,7 +16,7 @@ ssr = ssock.session
 print(ssock.session_reused) # False
 ssock.close()
 
-
+print(ssr)
 
 sock = socket.create_connection((hostname, port))
 ssock = context.wrap_socket(sock, server_hostname=hostname, session=ssr)
