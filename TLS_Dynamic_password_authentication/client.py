@@ -10,7 +10,7 @@ serverPort = 12000
 
 
 # 生成SSL上下文
-context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 # 加载信任根证书
 context.load_verify_locations('./ca/ca.crt')
 ssr = []
@@ -56,6 +56,8 @@ with socket.create_connection((serverName,serverPort)) as sock:
 
 
         ssock.close() # 关闭套接字
+
+# 下面是测试代码 可以删除
 input("wait")
 sock2 = socket.create_connection((serverName, serverPort))
 ssock2 = context.wrap_socket(sock2, server_hostname="19300240012", session=ssr)

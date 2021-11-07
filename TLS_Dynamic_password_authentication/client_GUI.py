@@ -16,7 +16,7 @@ class Stats:
         # 存储Session
         self.ssr = []
         # 生成SSL上下文
-        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         # 加载信任根证书
         self.context.load_verify_locations('./ca/ca.crt')
 
@@ -43,8 +43,8 @@ class Stats:
 
         if self.clickOK % 2:
             self.ssr = ssock.session
-        else:
-            self.ui.textEdit.append("使用session连接到服务器:")
+        
+        self.ui.textEdit.append("使用session连接到服务器:\t"+str(ssock.session_reused))
 
 
         sha256 = hashlib.sha256()

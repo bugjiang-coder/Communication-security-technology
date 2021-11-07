@@ -61,7 +61,7 @@ def findUser(userID):
 
 if __name__ == "__main__":
     
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     # 加载服务器所用证书和私钥
     context.load_cert_chain('./server/server.crt', './server/server.key')
     # 监听端口
