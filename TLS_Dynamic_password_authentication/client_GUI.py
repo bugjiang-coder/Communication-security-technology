@@ -6,7 +6,6 @@ import hashlib
 
 class Stats:
 
-
     def __init__(self):
         self.ui = QUiLoader().load('client.ui')
         self.ui.ButtonNO.clicked.connect(self.ButtonNO)
@@ -42,6 +41,7 @@ class Stats:
             self.ui.textEdit.append(str(er))
 
         if self.clickOK % 2:
+
             self.ssr = ssock.session
         
         self.ui.textEdit.append("使用session连接到服务器:\t"+str(ssock.session_reused))
@@ -53,7 +53,11 @@ class Stats:
         token = self.ui.token.text()
 
         self.ui.textEdit.append(str("用户名为："+id.decode()))
-        ssock.send(id)
+        if id:
+            ssock.send(id)
+        else:
+            ssock.close()  # 关闭套接字
+            return
         # 从服务器接收信息
         feedback = ssock.recv(1024)
         # 打印服务器的反馈
