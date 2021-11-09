@@ -14,7 +14,7 @@ context = mySSL.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 sock = socket.create_connection((host, port))
 # ssock = sock
-ssock = context.wrap_socket(sock, server_hostname=hostname)
+ssock = context.wrap_socket(sock)
 
 
 ssock.send("client connecting".encode())
