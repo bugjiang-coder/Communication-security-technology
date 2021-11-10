@@ -3,6 +3,9 @@ import random
 import numpy
 from Crypto.Cipher import AES
 import json
+import base64
+import rsa
+import PRF
 
 
 # 整个请求会和阶段使用Python的列表进行请求的认证
@@ -112,16 +115,8 @@ class SupportedGroup(IntEnum):
     secp521r1 = 0x0019
 
 
-class MyEncoder(json.JSONEncoder):
-    # 使用Python的json发送byte流，为了发送结构的美观，没有办法，将byte流转化为int发送
-    def default(self, obj):
-        if isinstance(obj, bytes):
-            return [int(i) for i in obj]
-        return json.JSONEncoder.default(self, obj)
-
-
 def packet(pkt):
-    # 为测试使用    
+    # 为测试使用
     # print(TLSContentType(20)._name_)
     print("[*]TLSContentType:\t"+TLSContentType(pkt[0])._name_)
     print("[*]TLSMessageType:\t"+TLSMessageType(pkt[1][0])._name_)
@@ -129,7 +124,7 @@ def packet(pkt):
     print("------------------------")
     print("[*]TLSVersion:\t"+TLSVersion(pkt[1][2][0])._name_)
     print("[*]Random:")
-    print(pkt[1][2][1])
+    print(base64.b64decode(pkt[1][2][1]))
     print("[*]session ID:")
     print(pkt[1][2][2])
     print("[*]TLSCipherSuites:")
@@ -137,67 +132,167 @@ def packet(pkt):
     print("[*]Compression Methods:")
     print(pkt[1][2][4])
 
+
 class SSLSocket:
     def __init__(self):
         self.socket = None
+        # 是否连接成功
         self.is_connect = False
         self.version
+        # 是否是服务端
         self.server_side = False
+        # 客户端随机数
         self.clientRandom
+        # 服务端随机数
         self.serverRandom
-    
-
-
+        # 预备主密钥
+        self.pre_master_secret
+        # server的rsa公钥
+        self.pubkey
+        # server的rsa私钥
+        self.privkey
 
     def client_hello(self):
         self.clientRandom = numpy.random.bytes(28)
-        CLIENT_HELLO = [TLSVersion.TLSv1_3, self.clientRandom,
+        # 由于json无法发送bytes流 clientRandom使用base64编码
+        CLIENT_HELLO = [TLSVersion.TLSv1_3, str(base64.b64encode(self.clientRandom)),
                         0, [i.value for i in TLSCipherSuites], None]
         clientRequest = [TLSMessageType.CLIENT_HELLO,
                          len(CLIENT_HELLO), CLIENT_HELLO]
         TLSContent = [TLSContentType.HANDSHAKE, clientRequest]
-        # 发送CLIENT_HELLO
         print("[*]\t 发送CLIENT_HELLO")
-        self.socket.send(json.dumps(TLSContent, cls=MyEncoder).encode())
 
-    def server_rcev(self):
+        # 发送CLIENT_HELLO
+        self.socket.send(json.dumps(TLSContent).encode())
+
+    def server_hello_rcev(self):
         data = json.loads(self.socket.recv(1024))
         if data[0] == TLSContentType.HANDSHAKE:
             if data[1][0] == TLSMessageType.CLIENT_HELLO:
-                
+                # 获取client 随机数
+                self.clientRandom = base64.b64decode(data[1][2][1])
+                # 检查 是否有对应的密码套件只实现了该套件
+                for i in data[1][2][3]:
+                    if i == TLSCipherSuites.TLS_RSA_WITH_AES_256_CBC_SHA256:
+                        return True
+        return False
 
-        
+    def server_hello_response(self):
+        # 由于json无法发送bytes流 clientRandom使用base64编码
+        self.serverRandom = numpy.random.bytes(28)
+        # 生成RSA密钥对 并且在CERTIFICATE部分发送
+        (self.pubkey, self.privkey) = rsa.newkeys(1024)
 
-    def client_do_handshake(self):
-        self.client_hello()
+        # SERVER_HELLO
+        SERVER_HELLO = [TLSVersion.TLSv1_3, str(base64.b64encode(self.serverRandom)),
+                        0, TLSCipherSuites.TLS_RSA_WITH_AES_256_CBC_SHA256, None]
+        serverResponse = [TLSMessageType.SERVER_HELLO,
+                          len(SERVER_HELLO), SERVER_HELLO]
+        TLSContent = [TLSContentType.HANDSHAKE, serverResponse]
+        print("[*]\t 发送SERVER_HELLO")
 
+        # 要发送证书 证书内包含 server的公钥 这里简化实现不进行签名认证，直接发送server的公钥
+        CERTIFICATE = [TLSVersion.TLSv1_3,
+                       str(base64.b64encode(self.pubkey.save_pkcs1()))]
+        certificate = [TLSMessageType.CERTIFICATE,
+                       len(CERTIFICATE), CERTIFICATE]
+        TLSContent1 = [TLSContentType.HANDSHAKE, certificate]
+        print("[*]\t 发送CERTIFICATE")
+
+        # SERVER_DONE 结束hello过程
+        SERVER_DONE = [TLSVersion.TLSv1_3]
+        helloDone = [TLSMessageType.SERVER_DONE, len(SERVER_DONE), SERVER_DONE]
+        TLSContent2 = [TLSContentType.HANDSHAKE, helloDone]
+        print("[*]\t 发送SERVER_DONE")
+
+        self.socket.send(json.dumps(
+            [TLSContent, TLSContent1, TLSContent2]).encode())
+
+    def client_hello_rcev(self):
+        data = json.loads(self.socket.recv(1024))
+        # 判断收到的两个包是否是HANDSHAKE
+        if data[0][0] == TLSContentType.HANDSHAKE and data[2][0] == TLSContentType.HANDSHAKE:
+            # 两个包的类型否是SERVER_HELLO 和 SERVER_DONE
+            if data[0][1][0] == TLSMessageType.SERVER_HELLO and data[2][1][0] == TLSMessageType.SERVER_DONE:
+                # 获取server随机数
+                self.serverRandom = base64.b64decode(data[0][1][2][1])
+                # 获取server的RSA公钥
+                self.pubkey = rsa.PublicKey.load_pkcs1(base64.b64decode(data[1][1][2][1]))
+                # 检查 是否有对应的密码套件只实现了该套件
+                if data[0][1][2][3] == TLSCipherSuites.TLS_RSA_WITH_AES_256_CBC_SHA256:
+                    return True
+        return False
+
+    def keySend(self):
+        # 生成预备主密钥
+        self.pre_master_secret = numpy.random.bytes(48)
+        # 用公钥加密预备主密钥
+        crypto = rsa.encrypt(self.pre_master_secret, self.pubkey)
+
+        CLIENT_KEY_EXCHANGE = [TLSVersion.TLSv1_3, str(base64.b64encode(crypto))]
+        clientKeyExchange = [TLSMessageType.CLIENT_KEY_EXCHANGE,
+                         len(CLIENT_KEY_EXCHANGE), CLIENT_KEY_EXCHANGE]
+        TLSContent = [TLSContentType.HANDSHAKE, clientKeyExchange]
+        print("[*]\t 发送CLIENT_KEY_EXCHANGE")
+
+        TLSContent1 = [TLSContentType.CHANGE_CIPHER_SPEC, TLSMessageType.CHANGE_CIPHER_SPEC, TLSVersion.TLSv1_3]
+        print("[*]\t 发送CHANGE_CIPHER_SPEC")
+
+        # 修改（这里是生成）对称密钥
+        self.change_cipher()
+
+        # TLSContent2 = [TLSContentType.CHANGE_CIPHER_SPEC, TLSMessageType.FINISHED,TLSVersion.TLSv1_3]
+        print("[*]\t 发送FINISHED")
+
+
+        # 发送CLIENT_HELLO
+        self.socket.send(json.dumps([TLSContent,TLSContent1,TLSContent2]).encode())
+
+    def change_cipher(self):
         pass
 
-    def server_do_handshake(self):
-        connectionSocket, addr = self.socket.accept()
-        self.server_rcev()
 
+
+    def client_do_handshake(self):
+        # 客户端向服务器hello
+        self.client_hello()
+        # 接收server的回复
+        chrFlag = self.client_hello_rcev()
+
+        self.keySend()
+
+        if chrFlag:
+            self.is_connect = True
+
+    def server_do_handshake(self):
+        # 服务器进行握手必须先接受一个连接
+        connectionSocket, addr = self.socket.accept()
+        # 服务器接受 client 的hello
+
+        shrFlag = self.server_hello_rcev()
+        # 服务响应给client
+        self.server_hello_response()
+
+        if shrFlag:
+            self.is_connect = True
 
         if self.is_connect:
             return (connectionSocket, addr)
         else:
             return False
 
-        pass
-
     def create(self, sock, server_side):
         self.socket = sock
-
         if server_side:
             self.server_side = True
-
         return self
 
     def accept(self):
-        if not self.server_side:
-            return False
-        if not self.is_connect:
+        if (self.server_side) and (not self.is_connect):
+            # 如果要调用 accept 一定是服务端 且一定是没有完成tls连接 必须先完成handshake
             return self.server_do_handshake()
+        else:
+            return False
 
     def recv(self):
         if not self.is_connect:
@@ -239,12 +334,12 @@ if __name__ == "__main__":
     # randomNum = ''
     # for i in range(0, len(bytes), 4):
     #     randomNum += str(int(bytes[i:i + 4], 2))
-    CLIENT_HELLO = [TLSVersion.TLSv1_3, numpy.random.bytes(28),
+    CLIENT_HELLO = [TLSVersion.TLSv1_3, str(base64.b64encode(numpy.random.bytes(28))),
                     0, [i.value for i in TLSCipherSuites], None]
     clientRequest = [TLSMessageType.CLIENT_HELLO,
                      len(CLIENT_HELLO), CLIENT_HELLO]
     TLSContent = [TLSContentType.HANDSHAKE, clientRequest]
-    data = json.dumps(TLSContent, cls=MyEncoder)
+    data = json.dumps(TLSContent)
 
     # print(data.encode())
     data2 = json.loads(data.encode())
