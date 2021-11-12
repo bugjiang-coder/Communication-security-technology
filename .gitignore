@@ -17,3 +17,5 @@ deploy_key_rsa
 
 # other
 *.rar
+TLS1.3/TLS文档.docx
+TLS1.3/code/ca/ca.crt

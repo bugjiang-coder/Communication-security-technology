@@ -5,7 +5,7 @@ host = '127.0.0.1'
 serverPort = 12000
 
 
-context = mySSL.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context = mySSL.SSLContext()
 # 加载服务器所用证书和私钥
 # context.load_cert_chain('./server/server.crt', './server/server.key')
 
@@ -15,7 +15,7 @@ sock.bind((host,serverPort))
 sock.listen(1)
 
 # ssock = sock
-ssock = context.wrap_socket(sock, server_side=True)
+ssock = context.wrap_socket(sock, True)
 
 
 connectionSocket, addr = ssock.accept()  # 接收到客户连接请求后，建立新的TCP连接套接字
