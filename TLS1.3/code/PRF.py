@@ -1,6 +1,5 @@
 import hmac
 
-
 class prf:
     def __init__(self, secret, label, seed) -> None:
         self.secret = secret
@@ -39,24 +38,4 @@ class prf:
 
 
 
-if __name__ == "__main__":
-    # 测试代码
-    ans = prf(b'hello', b'123', b'123123213')
-    print(len(ans.sequence))
-    print(ans.sequence)
-    ans.get()
-    print(len(ans.sequence))
-    print(ans.sequence)
-    ans.get()
-    print(len(ans.sequence))
-    print(ans.sequence)
-    a = ans.output(50)
-    print(len(a))
-    print(a)
     
-
-    # message = b'Hello, world!'
-    # key = b'secret'
-    # h = hmac.new(key, message, digestmod='sha256')
-    # # 如果消息很长，可以多次调用h.update(msg)
-    # print(h.digest())
