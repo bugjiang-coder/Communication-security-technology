@@ -1,16 +1,15 @@
-from socket import *
+import socket
 import time
 import hashlib
 import mySSL
 
 serverPort = 12000
 
-# 使用自己模拟 SSL进行连接
-context = mySSL.SSLContext()
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # 创建TCP欢迎套接字，使用IPv4协议
 sock.bind(('127.0.0.1', serverPort))
 sock.listen(1)                          # 最大连接数为1
-serverSocket = context.wrap_socket(sock, True)
+
 print("服务启动")
 
 # PIN 都是key的hash值 所有的用户密码都是key
@@ -67,6 +66,10 @@ def findUser(userID):
 times = 6
 
 while times:
+    # 使用自己模拟 SSL进行连接
+    context = mySSL.SSLContext()
+    serverSocket = context.wrap_socket(sock, True)
+
     connectionSocket, addr = serverSocket.accept()  # 接收到客户连接请求后，建立新的TCP连接套接字
     print('收到来自%s:%s的请求' % addr)
 
