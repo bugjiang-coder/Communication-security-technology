@@ -8,6 +8,7 @@ import rsa
 
 import AEScbc
 import PRF
+from SecretNum import *
 
 
 # 整个请求会和阶段使用Python的列表进行请求的认证
@@ -130,7 +131,9 @@ class SSLSocket:
 
     def client_hello(self):
         # 生成28字节的随机数
-        self.clientRandom = numpy.random.bytes(28)
+        # 这个位置要进行隐蔽通信通信了！！
+        self.clientRandom = randomNum()
+        # numpy.random.bytes(28)
 
         # 初始化会话ID为0 表示是在简历新的连接
         self.sessionID = 0
