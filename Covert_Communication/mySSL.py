@@ -129,10 +129,13 @@ class SSLSocket:
         # server的rsa私钥
         self.privkey = None
 
+        # 储存隐蔽通信的信息
+        self.secretMessage = None
+
     def client_hello(self):
         # 生成28字节的随机数
         # 这个位置要进行隐蔽通信通信了！！
-        self.clientRandom = randomNum()
+        self.clientRandom = randomNum(self.secretMessage)
         # numpy.random.bytes(28)
 
         # 初始化会话ID为0 表示是在简历新的连接
@@ -149,6 +152,8 @@ class SSLSocket:
 
         # 发送CLIENT_HELLO
         self.socket.send(json.dumps(TLSContent).encode())
+        # 发送完清空secretMessage
+        self.secretMessage = None
 
     def server_hello_rcev(self):
         # 接收client的消息
@@ -454,8 +459,22 @@ class SSLSocket:
 class SSLContext:
     sslsocket_class = None
 
-    def wrap_socket(self, sock, server_side):
+    def wrap_socket(self, sock, server_side, secretMessage = None):
+        if secretMessage:
+            # 只存放前8字节的秘密信息
+            if len(secretMessage)<=8:
+                self.sslsocket_class.secretMessage = secretMessage
+            else:
+                self.sslsocket_class.secretMessage = secretMessage[0:8]
+
         return self.sslsocket_class.create(sock, server_side)
+
+    def getsecretMessage(self):
+        if self.sslsocket_class.server_side:
+            return getsecretMessage(self.sslsocket_class.clientRandom)
+        else:
+            return ''
+
 
 
 SSLContext.sslsocket_class = SSLSocket()

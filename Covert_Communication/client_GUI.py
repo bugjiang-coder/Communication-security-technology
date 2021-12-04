@@ -16,13 +16,19 @@ class Stats:
         self.ui.key.setText('')
         self.ui.token.setText('')
         self.ui.textEdit.setText('')
+        self.ui.secretMessage.setText('')
 
     def handleOK(self):
+        id = self.ui.id.text().encode()
+        key = self.ui.key.text()
+        token = self.ui.token.text()
+        secretMessage = self.ui.secretMessage.text()
+
         try:
             context = mySSL.SSLContext()
             sock = socket.create_connection(
                 (serverName, serverPort))  # 建立TCP套接字，使用IPv4协议
-            clientSocket = context.wrap_socket(sock, False)
+            clientSocket = context.wrap_socket(sock, False, secretMessage)
 
         except OSError as error:
             self.ui.textEdit.append(str(error))
@@ -30,9 +36,6 @@ class Stats:
             self.ui.textEdit.append(str(er))
 
         sha256 = hashlib.sha256()
-        id = self.ui.id.text().encode()
-        key = self.ui.key.text()
-        token = self.ui.token.text()
 
         self.ui.textEdit.append(str("用户名为："+id.decode()))
         clientSocket.send(id)

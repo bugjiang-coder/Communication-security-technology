@@ -71,7 +71,11 @@ while times:
     serverSocket = context.wrap_socket(sock, True)
 
     connectionSocket, addr = serverSocket.accept()  # 接收到客户连接请求后，建立新的TCP连接套接字
+
+
     print('收到来自%s:%s的请求' % addr)
+
+    print("收到的秘密信息:%s" % context.getsecretMessage())
 
     id = connectionSocket.recv(1024).decode()  # 获取客户发送的id
     print("收到来自用户 %s 的请求" % id)
